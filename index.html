@@ -62,7 +62,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { 
   Gamepad2, CheckCircle, ChevronLeft, Phone, ShieldCheck, Zap, Loader2, Database, RefreshCw, Trash2, 
-  Settings, LogOut, Save, Lock, Wallet, User, Hash, Info, CreditCard, MapPin, Ticket, AlertCircle, History, Megaphone, Power, Grid, Edit, Users, Percent, Calendar, FileWarning, Clock, Image as ImageIcon, Plus, Video, LogOut as LogoutIcon, Volume2, VolumeX, MessageCircle, Send, Newspaper, HelpCircle, Mail, Unlock, LayoutDashboard, DollarSign, Activity, AlertTriangle
+  Settings, LogOut, Save, Lock, Wallet, User, Hash, Info, CreditCard, MapPin, Ticket, AlertCircle, History, Megaphone, Power, Grid, Edit, Users, Percent, Calendar, FileWarning, Clock, Image as ImageIcon, Plus, Video, LogOut as LogoutIcon, Volume2, VolumeX, MessageCircle, Send, Newspaper, HelpCircle, Mail, Unlock, LayoutDashboard, DollarSign, Activity, AlertTriangle, X
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -88,7 +88,6 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 // --- CONFIG ---
-// [UPDATED] UID ADMIN YANG DIMINTA SUDAH DIMASUKKAN
 const ADMIN_UIDS = [
     "0VVWTkCoIOYwehrYISbBW0uUGfJ2", 
     "aPaDAaBR1CMPy2D8Vu0jmF2QLMu1"
@@ -147,7 +146,7 @@ const GlassCard = ({ children, className = "", onClick }) => (
   </div>
 );
 
-// --- BANNER COMPONENT (UPDATED: NON-CLICKABLE) ---
+// --- BANNER COMPONENT ---
 const BannerSlider = ({ banners, globalMute }) => {
     const [localMute, setLocalMute] = useState(true);
     const sliderRef = useRef(null);
@@ -168,7 +167,7 @@ const BannerSlider = ({ banners, globalMute }) => {
     };
 
     const toggleSound = (e) => {
-        e.stopPropagation(); // Mute button still clickable
+        e.stopPropagation(); 
         if (globalMute) { alert("Admin mematikan suara secara global."); return; }
         const newMuted = !localMute;
         setLocalMute(newMuted);
@@ -195,14 +194,12 @@ const BannerSlider = ({ banners, globalMute }) => {
                             ) : (
                                 <img src={b.imageUrl} className="w-full h-full object-cover pointer-events-none"/>
                             )}
-                            {/* Gradient Overlay Visual */}
                             <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none z-10"></div>
                         </div>
                     )
                 })}
             </div>
 
-            {/* Tombol Mute tetap bisa diklik karena z-index tinggi */}
             {banners.length > 0 && (
                 <button onClick={toggleSound} className={`absolute bottom-4 right-4 z-50 p-2 rounded-full text-white backdrop-blur-sm border border-white/20 hover:scale-110 transition-transform ${globalMute ? 'bg-red-500/50 cursor-not-allowed' : 'bg-black/50 cursor-pointer'}`}>
                     {(localMute || globalMute) ? <VolumeX size={16}/> : <Volume2 size={16}/>}
@@ -257,6 +254,7 @@ function App() {
   // Modals & UI
   const [chatOpen, setChatOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false); 
+  const [viewNewsModal, setViewNewsModal] = useState(false); // STATE BARU UNTUK BERITA
   const [chatMsg, setChatMsg] = useState('');
   const [supportInput, setSupportInput] = useState('');
   const chatEndRef = useRef(null);
@@ -269,7 +267,6 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        // Cek admin pakai UID yang sudah dimasukkan
         const adminStatus = ADMIN_UIDS.includes(currentUser.uid);
         setIsAdmin(adminStatus);
         
@@ -399,7 +396,7 @@ function App() {
   };
   const editProduct = (p) => { setProdForm(p); setIsEditingProd(true); setAdminTab('products'); window.scrollTo(0,0); };
   const savePromo = async () => { if(!promoForm.code || !promoForm.value) return; await addDoc(collection(db, "promos"), { code: promoForm.code.toUpperCase(), type: promoForm.type, value: Number(promoForm.value), limit: Number(promoForm.limit), usedCount: 0 }); setPromoForm({code:'', type:'nominal', value:'', limit: 100}); };
-  const addBannerImage = async () => { if(!bannerInput) return; await addDoc(collection(db, 'banners'), { imageUrl: bannerInput, type: 'mixed', createdAt: new Date().toISOString() }); setBannerInput(''); };
+  const addBannerImage = async () => { if(!bannerInput) return; await addDoc(collection(db, 'banners'), { imageUrl: bannerInput, type: 'mixed', createdAt: new Date().toISOString() }); setBannerInput(''); alert("Banner Ditambahkan!"); };
   
   const deleteAllBanners = async () => {
     if(!confirm("YAKIN HAPUS SEMUA BANNER? Tindakan ini tidak bisa dibatalkan.")) return;
@@ -416,7 +413,7 @@ function App() {
     }
   };
 
-  const addNews = async () => { if(!newsInput) return; await addDoc(collection(db, 'news'), { content: newsInput, createdAt: new Date().toISOString() }); setNewsInput(''); };
+  const addNews = async () => { if(!newsInput) return; await addDoc(collection(db, 'news'), { content: newsInput, createdAt: new Date().toISOString() }); setNewsInput(''); alert("Berita Ditambahkan!"); };
   const resetAndSeedDatabase = async () => {
       if(!confirm("YAKIN?")) return; setIsResetting(true);
       try {
@@ -455,13 +452,32 @@ function App() {
                 </div>
                 <button onClick={handleGoogleLogin} className="w-full bg-white hover:bg-gray-200 text-gray-900 font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all transform hover:scale-105 shadow-xl shadow-blue-900/20 group"><img src="https://www.google.com/favicon.ico" className="w-6 h-6 group-hover:rotate-12 transition-transform"/> <span>Masuk dengan Google</span></button>
             </div>
-            {/* BERITA MUNCUL DI LOGIN (TIDAK BISA DIKLIK) */}
+            {/* BERITA MUNCUL DI LOGIN (KLIK UNTUK PERBESAR) */}
             {news.length > 0 && (
-                <div className="mt-8 bg-black/40 backdrop-blur-md rounded-xl overflow-hidden border border-white/10 pointer-events-none select-none">
+                <div onClick={() => setViewNewsModal(true)} className="mt-8 bg-black/40 backdrop-blur-md rounded-xl overflow-hidden border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
                     <div className="whitespace-nowrap animate-marquee p-3 text-xs text-blue-200 font-bold uppercase tracking-widest">{news.map(n => n.content).join("  •  ")}</div>
                 </div>
             )}
         </div>
+        {/* MODAL BERITA LOGIN */}
+        {viewNewsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md" onClick={()=>setViewNewsModal(false)}>
+            <GlassCard className="max-w-md w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
+                 <h3 className="font-bold text-xl text-blue-400 font-display">INFO & BERITA</h3>
+                 <button onClick={()=>setViewNewsModal(false)} className="bg-white/10 p-2 rounded-full hover:bg-red-500/20"><X size={20}/></button>
+              </div>
+              <div className="space-y-4">
+                {news.map(n => (
+                  <div key={n.id} className="bg-white/5 p-4 rounded-xl border border-white/10 hover:border-blue-500/50 transition-colors">
+                    <p className="text-sm leading-relaxed text-gray-200 font-medium">{n.content}</p>
+                    <p className="text-[10px] text-gray-500 mt-2 text-right flex items-center justify-end gap-1"><Calendar size={10}/> {format(new Date(n.createdAt), 'dd MMM HH:mm')}</p>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          </div>
+        )}
       </div>
   );
 
@@ -506,7 +522,7 @@ function App() {
                       <button onClick={toggleGlobalMute} className={`px-4 py-2 rounded-lg text-[10px] font-bold shadow-lg transition-all ${storeConfig.globalMute ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-green-600 hover:bg-green-500 text-white'}`}>{storeConfig.globalMute ? 'UNMUTE ALL' : 'MUTE ALL'}</button>
                   </div>
                   <div className="mb-4 pb-4 border-b border-white/10"><label className="text-xs text-gray-400 block mb-1">Teks Berjalan:</label><div className="flex gap-2"><input value={newRunningText} onChange={e=>setNewRunningText(e.target.value)} placeholder="Teks banner..." className="flex-1 p-2 glass-input rounded text-xs"/><button onClick={saveRunningText} className="bg-blue-600 p-2 rounded text-xs font-bold">Simpan</button></div></div>
-                  <div className="flex gap-2 mb-4"><input value={bannerInput} onChange={e=>setBannerInput(e.target.value)} placeholder="Link YouTube/TikTok/Gambar..." className="flex-1 p-2 glass-input rounded text-xs"/><button onClick={addBannerImage} className="bg-green-600 p-2 rounded"><Plus size={16}/></button></div>
+                  <div className="flex gap-2 mb-4"><input value={bannerInput} onChange={e=>setBannerInput(e.target.value)} placeholder="Link YouTube/TikTok/Gambar..." className="flex-1 p-2 glass-input rounded text-xs"/><button onClick={addBannerImage} className="bg-green-600 p-2 rounded flex items-center gap-1 font-bold text-xs"><Plus size={14}/> TAMBAH</button></div>
                   <div className="space-y-2">{banners.map(b => (<div key={b.id} className="relative h-24 bg-black overflow-hidden rounded group border border-white/10">{b.type === 'mixed' && b.imageUrl.includes('http') ? (getMediaContent(b.imageUrl, true).includes('embed') ? <iframe src={getMediaContent(b.imageUrl, true)} className="w-full h-full pointer-events-none"></iframe> : <img src={b.imageUrl} className="w-full h-full object-cover opacity-50"/>) : <div className="text-xs text-center p-2 text-red-400">Invalid Link</div>}<button onClick={()=>deleteDoc(doc(db,'banners',b.id))} className="absolute top-2 right-2 bg-red-600 p-1.5 rounded text-white z-10 hover:bg-red-500"><Trash2 size={14}/></button></div>))}</div>
               </GlassCard>
           )}
@@ -530,7 +546,7 @@ function App() {
           )}
 
           {adminTab === 'promos' && (<GlassCard><h3 className="text-sm font-bold text-green-400 mb-3">BUAT KODE PROMO</h3><div className="space-y-2"><input value={promoForm.code} onChange={e=>setPromoForm({...promoForm, code:e.target.value})} placeholder="KODE" className="w-full p-2 glass-input rounded text-xs uppercase"/><div className="grid grid-cols-2 gap-2"><select value={promoForm.type} onChange={e=>setPromoForm({...promoForm, type:e.target.value})} className="p-2 glass-input rounded text-xs bg-dark-900"><option value="nominal">Rp</option><option value="percent">%</option></select><input value={promoForm.value} onChange={e=>setPromoForm({...promoForm, value:e.target.value})} placeholder="Nilai" type="number" className="p-2 glass-input rounded text-xs"/></div><input value={promoForm.limit} onChange={e=>setPromoForm({...promoForm, limit:e.target.value})} placeholder="Limit" type="number" className="w-full p-2 glass-input rounded text-xs"/><button onClick={savePromo} className="w-full bg-green-600 py-2 rounded font-bold text-xs">SIMPAN PROMO</button></div><div className="mt-4 space-y-2 max-h-40 overflow-y-auto">{promos.map(p => (<div key={p.id} className="bg-white/5 p-2 rounded flex justify-between text-xs"><span>{p.code} ({p.type==='percent'?p.value+'%':'Rp '+p.value})</span><button onClick={()=>deleteDoc(doc(db,'promos',p.id))} className="text-red-400"><Trash2 size={12}/></button></div>))}</div></GlassCard>)}
-          {adminTab === 'news' && (<GlassCard><h3 className="text-sm font-bold text-blue-400 mb-3">BERITA</h3><div className="flex gap-2 mb-4"><input value={newsInput} onChange={e=>setNewsInput(e.target.value)} placeholder="Isi Berita..." className="flex-1 p-2 glass-input rounded text-xs"/><button onClick={addNews} className="bg-green-600 p-2 rounded"><Plus size={16}/></button></div><div className="space-y-2">{news.map(n => (<div key={n.id} className="bg-white/5 p-2 rounded flex justify-between text-xs"><span>{n.content}</span><button onClick={()=>deleteDoc(doc(db,'news',n.id))} className="text-red-400"><Trash2 size={14}/></button></div>))}</div></GlassCard>)}
+          {adminTab === 'news' && (<GlassCard><h3 className="text-sm font-bold text-blue-400 mb-3">BERITA</h3><div className="flex gap-2 mb-4"><input value={newsInput} onChange={e=>setNewsInput(e.target.value)} placeholder="Isi Berita..." className="flex-1 p-2 glass-input rounded text-xs"/><button onClick={addNews} className="bg-green-600 p-2 rounded flex items-center gap-1 font-bold text-xs"><Plus size={14}/> TAMBAH</button></div><div className="space-y-2">{news.map(n => (<div key={n.id} className="bg-white/5 p-2 rounded flex justify-between text-xs"><span>{n.content}</span><button onClick={()=>deleteDoc(doc(db,'news',n.id))} className="text-red-400"><Trash2 size={14}/></button></div>))}</div></GlassCard>)}
           {adminTab === 'products' && (<GlassCard><form onSubmit={saveProduct} className="space-y-2 mb-4"><div className="grid grid-cols-2 gap-2"><input value={prodForm.gameId} onChange={e=>setProdForm({...prodForm, gameId:e.target.value})} placeholder="ID (ff)" className="p-2 glass-input rounded text-xs"/><input value={prodForm.gameTitle} onChange={e=>setProdForm({...prodForm, gameTitle:e.target.value})} placeholder="Game" className="p-2 glass-input rounded text-xs"/></div><input value={prodForm.name} onChange={e=>setProdForm({...prodForm, name:e.target.value})} placeholder="Item" className="w-full p-2 glass-input rounded text-xs"/><div className="grid grid-cols-2 gap-2"><input value={prodForm.price} onChange={e=>setProdForm({...prodForm, price:e.target.value})} placeholder="Harga" className="p-2 glass-input rounded text-xs"/><input value={prodForm.discountPercent} onChange={e=>setProdForm({...prodForm, discountPercent:e.target.value})} placeholder="Diskon" className="p-2 glass-input rounded text-xs"/></div><div className="flex items-center gap-2 bg-white/5 p-2 rounded"><input type="checkbox" checked={prodForm.requiresZoneId} onChange={e=>setProdForm({...prodForm, requiresZoneId:e.target.checked})} className="accent-blue-600"/><label className="text-xs">Wajib Zone?</label></div><button className="w-full bg-orange-600 py-2 rounded text-xs font-bold">{isEditingProd?'Update':'Simpan'}</button></form><div className="flex gap-2 mb-2 overflow-x-auto">{getGameList().map(g=><button key={g.id} onClick={()=>setAdminProductTab(g.id)} className="px-3 py-1 bg-white/10 rounded text-[10px]">{g.title}</button>)}</div><div className="space-y-1 max-h-60 overflow-y-auto">{allProducts.filter(p=>p.gameId===adminProductTab).map(p=><div key={p.id} className="flex justify-between bg-white/5 p-2 rounded text-xs"><span>{p.name}</span><div><button onClick={()=>editProduct(p)} className="text-blue-400 mr-2"><Edit size={12}/></button><button onClick={()=>deleteDoc(doc(db,'products',p.id))} className="text-red-400"><Trash2 size={12}/></button></div></div>)}</div><button onClick={resetAndSeedDatabase} className="w-full mt-4 bg-red-900/50 py-2 rounded text-xs text-red-300">Reset DB</button></GlassCard>)}
           {adminTab === 'support' && (<div className="space-y-2">{supportMsgs.map(s=>(<div key={s.id} className="glass-panel p-3 rounded text-xs"><div className="font-bold text-blue-400">{s.sender}</div><p className="mt-1">{s.text}</p><button onClick={()=>deleteDoc(doc(db,'support',s.id))} className="mt-2 text-red-400">Hapus</button></div>))}</div>)}
           {adminTab === 'users' && (<GlassCard className="space-y-3"><h3 className="text-sm font-bold text-blue-400">USERS ({allUsers.length})</h3><div className="space-y-2 max-h-96 overflow-y-auto">{allUsers.map((u, idx) => (<div key={idx} className="flex items-center gap-3 bg-white/5 p-2 rounded-lg border border-white/5"><img src={u.photoURL} alt="U" className="w-8 h-8 rounded-full border border-white/20"/><div className="flex-1 overflow-hidden"><div className="text-xs font-bold text-white truncate">{u.displayName}</div><div className="text-[10px] text-gray-400 truncate">{u.email}</div><div className="text-[9px] text-blue-300 mt-1 flex items-center gap-1"><Calendar size={8}/> {u.lastLogin ? format(new Date(u.lastLogin), 'dd MMM HH:mm', {locale: idLocale}) : 'Baru'}</div></div></div>))}</div></GlassCard>)}
@@ -588,7 +604,13 @@ function App() {
                 ))}
             </div>
 
-            {news.length > 0 && (<div className="mt-6"><h3 className="text-sm font-bold text-white border-l-4 border-purple-500 pl-2 mb-3">BERITA TERBARU</h3><div className="bg-black/30 rounded-xl overflow-hidden backdrop-blur-sm pointer-events-none select-none"><div className="whitespace-nowrap animate-marquee p-3 text-xs text-blue-200">{news.map(n => n.content).join("  •  ")}</div></div></div>)}
+            {/* BERITA USER DASHBOARD (KLIK UNTUK PERBESAR) */}
+            {news.length > 0 && (
+                <div onClick={() => setViewNewsModal(true)} className="mt-6 cursor-pointer hover:bg-white/5 rounded-xl transition-all">
+                    <h3 className="text-sm font-bold text-white border-l-4 border-purple-500 pl-2 mb-3">BERITA TERBARU (Klik untuk Info)</h3>
+                    <div className="bg-black/30 rounded-xl overflow-hidden backdrop-blur-sm"><div className="whitespace-nowrap animate-marquee p-3 text-xs text-blue-200">{news.map(n => n.content).join("  •  ")}</div></div>
+                </div>
+            )}
         </div>
         )}
 
@@ -596,6 +618,26 @@ function App() {
             {storeConfig.chatEnabled && <button onClick={()=>setChatOpen(true)} className="bg-blue-600 p-4 rounded-full shadow-lg text-white animate-bounce-slow"><MessageCircle size={24}/></button>}
             <button onClick={()=>setSupportOpen(true)} className="bg-purple-600 p-4 rounded-full shadow-lg text-white"><HelpCircle size={24}/></button>
         </div>
+
+        {/* MODAL BERITA USER DASHBOARD */}
+        {viewNewsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md" onClick={()=>setViewNewsModal(false)}>
+            <GlassCard className="max-w-md w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
+                 <h3 className="font-bold text-xl text-blue-400 font-display">INFO & BERITA</h3>
+                 <button onClick={()=>setViewNewsModal(false)} className="bg-white/10 p-2 rounded-full hover:bg-red-500/20"><X size={20}/></button>
+              </div>
+              <div className="space-y-4">
+                {news.map(n => (
+                  <div key={n.id} className="bg-white/5 p-4 rounded-xl border border-white/10 hover:border-blue-500/50 transition-colors">
+                    <p className="text-sm leading-relaxed text-gray-200 font-medium">{n.content}</p>
+                    <p className="text-[10px] text-gray-500 mt-2 text-right flex items-center justify-end gap-1"><Calendar size={10}/> {format(new Date(n.createdAt), 'dd MMM HH:mm')}</p>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          </div>
+        )}
 
         {chatOpen && (
             <div className="fixed bottom-24 right-6 w-80 h-96 bg-slate-900 border border-white/20 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in">
