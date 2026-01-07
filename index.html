@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Miller Store - Viper Edition</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Rajdhani', 'sans-serif'] },
+      colors: { dark: { 900: '#0f172a', 800: '#1e293b', 700: '#334155' } },
+      animation: { 
+        'float': 'float 6s ease-in-out infinite', 
+        'marquee': 'marquee 20s linear infinite',
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+      },
+      keyframes: { 
+        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+        marquee: { '0%': { transform: 'translateX(100%)' }, '100%': { transform: 'translateX(-100%)' } }
+      }
+    }
+  }
+}
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.292.0",
+    "date-fns": "https://esm.sh/date-fns@2.30.0",
+    "date-fns/locale": "https://esm.sh/date-fns@2.30.0/locale"
+  }
+}
+</script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: white; }
+  h1, h2, h3, .font-display { font-family: 'Rajdhani', sans-serif; }
+  .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+  .glass-card-login { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 0 50px rgba(59, 130, 246, 0.1); }
+  .glass-input { background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); color: white; }
+  .glass-input:focus { border-color: rgba(96, 165, 250, 0.5); background: rgba(0, 0, 0, 0.5); }
+  ::-webkit-scrollbar { width: 0px; background: transparent; }
+  .hide-scroll::-webkit-scrollbar { display: none; }
+  .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+  
+  /* Agar banner video tidak bisa di klik kanan atau interaksi */
+  .no-interact { pointer-events: none; user-select: none; }
+</style>
+</head>
+<body class="touch-manipulation overflow-x-hidden selection:bg-blue-500 selection:text-white">
+<div id="root"></div>
+
+<script type="text/babel" data-type="module">
+import React, { useState, useEffect, useRef } from 'react';
+import { createRoot } from 'react-dom/client';
+import { 
+  Gamepad2, CheckCircle, ChevronLeft, Phone, ShieldCheck, Zap, Loader2, Database, RefreshCw, Trash2, 
+  Settings, LogOut, Save, Lock, Wallet, User, Hash, Info, CreditCard, MapPin, Ticket, AlertCircle, History, Megaphone, Power, Grid, Edit, Users, Percent, Calendar, FileWarning, Clock, Image as ImageIcon, Plus, Video, LogOut as LogoutIcon, Volume2, VolumeX, MessageCircle, Send, Newspaper, HelpCircle, Mail, Unlock, LayoutDashboard, DollarSign, Activity, AlertTriangle
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+
+// --- FIREBASE INIT ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, where, doc, updateDoc, deleteDoc, getDoc, setDoc, increment, writeBatch, getDocs, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC_oCDI5CCJLBimBjWngn25xpZPUcE-y_8",
+  authDomain: "millerstore1-e7bf8.firebaseapp.com",
+  projectId: "millerstore1-e7bf8",
+  storageBucket: "millerstore1-e7bf8.firebasestorage.app",
+  messagingSenderId: "749437546306",
+  appId: "1:749437546306:web:6632b2f145233f885222db",
+  measurementId: "G-49SRT0VFQ6"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+// --- CONFIG ---
+// [UPDATED] UID ADMIN YANG DIMINTA SUDAH DIMASUKKAN
+const ADMIN_UIDS = [
+    "0VVWTkCoIOYwehrYISbBW0uUGfJ2", 
+    "aPaDAaBR1CMPy2D8Vu0jmF2QLMu1"
+]; 
+
+// --- DATA MASTER ---
+const NEW_DATA_FF = [ { name: "5 DM", price: 3786 }, { name: "140 DM", price: 19280 }, { name: "720 DM", price: 89050 } ];
+const NEW_DATA_ML = [ { name: "5 DM", price: 4495 }, { name: "86 DM", price: 25036 }, { name: "Weekly Pass", price: 30300 } ];
+
+// QRIS Logic
+const BASE_QRIS = "00020101021126670016COM.NOBUBANK.WWW01189360050300000903200214528469863669210303UMI51440014ID.CO.QRIS.WWW0215ID20253717051660303UMI5204481253033605802ID5912MILLER TEVES6005AMBON61059723262070703A01";
+function crc16(s) { let crc = 0xFFFF; for (let i = 0; i < s.length; i++) { let c = s.charCodeAt(i); crc ^= c << 8; for (let j = 0; j < 8; j++) { if (crc & 0x8000) crc = (crc << 1) ^ 0x1021; else crc = crc << 1; } } return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0'); }
+function generateDynamicQRIS(amount) { const amountStr = Math.floor(amount).toString(); const tag54 = "54" + amountStr.length.toString().padStart(2, '0') + amountStr; let rawString = BASE_QRIS + tag54 + "6304"; return rawString + crc16(rawString); }
+
+// --- HELPER: VIDEO PARSER ---
+function getMediaContent(url, isMuted) {
+    if (!url) return '';
+    
+    // YouTube
+    let ytId = '';
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        if (url.includes('v=')) ytId = url.split('v=')[1].split('&')[0];
+        else if (url.includes('shorts/')) ytId = url.split('shorts/')[1].split('?')[0];
+        else if (url.includes('youtu.be/')) ytId = url.split('youtu.be/')[1].split('?')[0];
+        
+        if (ytId) return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=${isMuted?1:0}&loop=1&playlist=${ytId}&controls=0&showinfo=0&rel=0&iv_load_policy=3&disablekb=1&modestbranding=1&playsinline=1&origin=${window.location.origin}`;
+    }
+
+    // TikTok (Embed)
+    if (url.includes('tiktok.com')) {
+        const videoIdMatch = url.match(/video\/(\d+)/);
+        if (videoIdMatch) return `https://www.tiktok.com/embed/v2/${videoIdMatch[1]}?autoplay=1&mute=${isMuted?1:0}`;
+    }
+
+    // Generic Video (MP4)
+    if (url.match(/\.(mp4|webm|ogg)$/i)) {
+        return url; // Will be handled by <video> tag
+    }
+
+    // Pinterest & Images
+    return url; 
+}
+
+// --- COMPONENTS ---
+const Background = () => (
+  <div className="fixed inset-0 z-0 overflow-hidden bg-dark-900 pointer-events-none">
+    <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/20 rounded-full blur-3xl animate-blob"></div>
+    <div className="absolute top-[20%] right-[-10%] w-80 h-80 bg-purple-600/20 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
+    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+  </div>
+);
+
+const GlassCard = ({ children, className = "", onClick }) => (
+  <div onClick={onClick} className={`glass-panel rounded-2xl p-5 shadow-xl transition-all duration-300 ${className}`}>
+    {children}
+  </div>
+);
+
+// --- BANNER COMPONENT (UPDATED: NON-CLICKABLE) ---
+const BannerSlider = ({ banners, globalMute }) => {
+    const [localMute, setLocalMute] = useState(true);
+    const sliderRef = useRef(null);
+
+    useEffect(() => { if (globalMute) setLocalMute(true); }, [globalMute]);
+
+    const handleScroll = () => {
+        if (!sliderRef.current) return;
+        const width = sliderRef.current.offsetWidth;
+        const activeIndex = Math.round(sliderRef.current.scrollLeft / width);
+        banners.forEach((_, idx) => {
+            const frame = document.getElementById(`player-${idx}`);
+            if (frame && frame.contentWindow && frame.src.includes('youtube')) {
+                const command = (idx === activeIndex && !localMute && !globalMute) ? 'unMute' : 'mute';
+                frame.contentWindow.postMessage(JSON.stringify({ event: 'command', func: command, args: [] }), '*');
+            }
+        });
+    };
+
+    const toggleSound = (e) => {
+        e.stopPropagation(); // Mute button still clickable
+        if (globalMute) { alert("Admin mematikan suara secara global."); return; }
+        const newMuted = !localMute;
+        setLocalMute(newMuted);
+        setTimeout(handleScroll, 100); 
+    };
+
+    return (
+        <div className="relative w-full h-full group">
+             {/* OVERLAY PELINDUNG UTAMA: Mencegah klik pada video */}
+            <div className="absolute inset-0 z-20 bg-transparent"></div>
+
+            <div ref={sliderRef} onScroll={handleScroll} className="flex w-full h-full overflow-x-auto snap-x snap-mandatory hide-scroll">
+                {banners.map((b,i) => {
+                    const src = getMediaContent(b.imageUrl, true); 
+                    const isVideo = src.includes('embed') || src.includes('youtube') || src.endsWith('.mp4');
+                    
+                    return (
+                        <div key={i} className="w-full h-full flex-shrink-0 snap-center relative flex items-center justify-center bg-black overflow-hidden">
+                            {isVideo ? (
+                                src.endsWith('.mp4') ? 
+                                <video src={src} autoPlay loop muted={localMute || globalMute} playsInline className="w-full h-full object-cover pointer-events-none" /> 
+                                :
+                                <iframe id={`player-${i}`} src={src} className="w-[150%] h-[150%] pointer-events-none" style={{pointerEvents: 'none'}} allow="autoplay; encrypted-media; fullscreen" title="banner"></iframe>
+                            ) : (
+                                <img src={b.imageUrl} className="w-full h-full object-cover pointer-events-none"/>
+                            )}
+                            {/* Gradient Overlay Visual */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none z-10"></div>
+                        </div>
+                    )
+                })}
+            </div>
+
+            {/* Tombol Mute tetap bisa diklik karena z-index tinggi */}
+            {banners.length > 0 && (
+                <button onClick={toggleSound} className={`absolute bottom-4 right-4 z-50 p-2 rounded-full text-white backdrop-blur-sm border border-white/20 hover:scale-110 transition-transform ${globalMute ? 'bg-red-500/50 cursor-not-allowed' : 'bg-black/50 cursor-pointer'}`}>
+                    {(localMute || globalMute) ? <VolumeX size={16}/> : <Volume2 size={16}/>}
+                </button>
+            )}
+        </div>
+    );
+};
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [view, setView] = useState('loading'); 
+  
+  // Data
+  const [allProducts, setAllProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [userOrders, setUserOrders] = useState([]);
+  const [storeConfig, setStoreConfig] = useState({ isOpen: true, banner: "", chatEnabled: true, globalMute: false });
+  const [promos, setPromos] = useState([]);
+  const [allUsers, setAllUsers] = useState([]); 
+  const [banners, setBanners] = useState([]); 
+  const [news, setNews] = useState([]);
+  const [chats, setChats] = useState([]); 
+  const [supportMsgs, setSupportMsgs] = useState([]); 
+  
+  // Transaction
+  const [selectedGameData, setSelectedGameData] = useState(null); 
+  const [userId, setUserId] = useState('');
+  const [userNameInput, setUserNameInput] = useState(''); 
+  const [zoneId, setZoneId] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('qris'); 
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [qrisData, setQrisData] = useState(null);
+  const [codSuccess, setCodSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
+
+  // Admin
+  const [adminTab, setAdminTab] = useState('overview'); 
+  const [adminProductTab, setAdminProductTab] = useState('ff'); 
+  const [isEditingProd, setIsEditingProd] = useState(false);
+  const [prodForm, setProdForm] = useState({ id: '', gameId: 'ff', gameTitle: 'Free Fire', name: '', price: '', discountPercent: 0, requiresZoneId: false });
+  const [promoForm, setPromoForm] = useState({ code: '', type: 'nominal', value: '', limit: 100 });
+  const [bannerInput, setBannerInput] = useState('');
+  const [newsInput, setNewsInput] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  const [newRunningText, setNewRunningText] = useState('');
+
+  // Modals & UI
+  const [chatOpen, setChatOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false); 
+  const [chatMsg, setChatMsg] = useState('');
+  const [supportInput, setSupportInput] = useState('');
+  const chatEndRef = useRef(null);
+  const [tick, setTick] = useState(Date.now()); 
+
+  // --- INIT ---
+  useEffect(() => {
+    const timer = setInterval(() => setTick(Date.now()), 60000); 
+
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        // Cek admin pakai UID yang sudah dimasukkan
+        const adminStatus = ADMIN_UIDS.includes(currentUser.uid);
+        setIsAdmin(adminStatus);
+        
+        try { await setDoc(doc(db, 'users', currentUser.uid), { uid: currentUser.uid, displayName: currentUser.displayName, email: currentUser.email, photoURL: currentUser.photoURL, lastLogin: new Date().toISOString() }, { merge: true }); } catch(e) {}
+
+        onSnapshot(doc(db, "config", "settings"), (doc) => { 
+            if(doc.exists()) {
+                const data = doc.data();
+                setStoreConfig(data);
+                setNewRunningText(data.banner || ""); 
+            }
+        });
+        onSnapshot(query(collection(db, 'products'), orderBy('order')), (snap) => setAllProducts(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+        onSnapshot(collection(db, 'banners'), (snap) => setBanners(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+        onSnapshot(query(collection(db, 'news'), orderBy('createdAt', 'desc')), (snap) => setNews(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+        onSnapshot(query(collection(db, 'chats'), orderBy('createdAt', 'asc'), limit(50)), (snap) => {
+            setChats(snap.docs.map(d => ({id: d.id, ...d.data()})));
+            setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+        });
+
+        const qOrders = query(collection(db, 'orders'), where("customerUid", "==", currentUser.uid));
+        onSnapshot(qOrders, (snap) => {
+             const list = snap.docs.map(d => ({id: d.id, ...d.data()}));
+             list.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+             setUserOrders(list);
+        });
+
+        if(adminStatus) {
+            setView('admin');
+            onSnapshot(query(collection(db, 'orders'), orderBy('createdAt', 'desc')), (snap) => setOrders(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+            onSnapshot(query(collection(db, 'promos')), (snap) => setPromos(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+            onSnapshot(collection(db, 'users'), (snap) => setAllUsers(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+            onSnapshot(query(collection(db, 'support'), orderBy('createdAt', 'desc')), (snap) => setSupportMsgs(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+        } else {
+            setView('store');
+        }
+      } else {
+        setUser(null);
+        setView('login');
+        getDocs(collection(db, 'banners')).then(snap => setBanners(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+        getDocs(query(collection(db, 'news'), orderBy('createdAt', 'desc'))).then(snap => setNews(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+      }
+    });
+    return () => { unsubscribe(); clearInterval(timer); }
+  }, []);
+
+  const handleGoogleLogin = async () => { try { await signInWithPopup(auth, googleProvider); } catch (error) { alert(error.message); } };
+  const performLogout = async () => { if(confirm("Yakin keluar?")) { await signOut(auth); window.localStorage.clear(); window.location.reload(); } };
+
+  const handleApplyPromo = async () => {
+    if(!promoCodeInput) return;
+    const code = promoCodeInput.toUpperCase();
+    const qSnap = await getDocs(query(collection(db, "promos"), where("code", "==", code)));
+    if(!qSnap.empty) {
+        const p = { id: qSnap.docs[0].id, ...qSnap.docs[0].data() };
+        if(p.usedCount >= p.limit) { alert("Kuota habis!"); setAppliedPromo(null); return; }
+        setAppliedPromo(p); alert("Kode Promo Dipasang!");
+    } else { alert("Kode tidak valid!"); setAppliedPromo(null); }
+  };
+
+  const calculateFinalPrice = () => {
+      let price = selectedItem.price;
+      if(selectedItem.discountPercent > 0) price = price - (price * (selectedItem.discountPercent / 100));
+      if(appliedPromo) {
+          if(appliedPromo.type === 'percent') price = price - (price * (appliedPromo.value / 100));
+          else price = price - appliedPromo.value;
+      }
+      return Math.max(0, price);
+  };
+
+  const handleConfirmOrder = async () => {
+    setIsSubmitting(true);
+    const finalPrice = calculateFinalPrice();
+    const dynamicQris = paymentMethod === 'qris' ? generateDynamicQRIS(finalPrice) : '';
+    const needsZone = selectedGameData.requiresZoneId;
+    const orderPayload = { 
+        game: selectedGameData.title, gameId: selectedGameData.id, 
+        userId, zoneId: needsZone ? zoneId : '-', inGameName: userNameInput,
+        item: selectedItem.name, basePrice: selectedItem.price, price: finalPrice, 
+        promoUsed: appliedPromo ? appliedPromo.code : '-', paymentMethod, qrisString: dynamicQris, 
+        status: 'pending', createdAt: new Date().toISOString(), customerName: user.displayName, customerEmail: user.email, customerUid: user.uid 
+    };
+    try {
+      await addDoc(collection(db, 'orders'), orderPayload);
+      if(appliedPromo) await updateDoc(doc(db, "promos", appliedPromo.id), { usedCount: increment(1) });
+      if (paymentMethod === 'qris') setQrisData(dynamicQris); else setCodSuccess(true);
+      setShowConfirm(false);
+    } catch (e) { alert("Gagal: " + e.message); } 
+    finally { setIsSubmitting(false); }
+  };
+
+  const sendChat = async (e) => {
+      e.preventDefault();
+      if(!chatMsg.trim()) return;
+      await addDoc(collection(db, 'chats'), { text: chatMsg, sender: user.displayName, uid: user.uid, photoURL: user.photoURL, createdAt: new Date().toISOString() });
+      setChatMsg('');
+  };
+
+  const deleteChat = async (id) => { if(confirm("Hapus pesan ini?")) await deleteDoc(doc(db, 'chats', id)); };
+
+  const sendSupportMessage = async (e) => {
+      e.preventDefault();
+      if(!supportInput.trim()) return;
+      await addDoc(collection(db, 'support'), { text: supportInput, sender: user.displayName, uid: user.uid, email: user.email, createdAt: new Date().toISOString(), status: 'unread' });
+      alert("Pesan terkirim ke Admin.");
+      setSupportInput('');
+      setSupportOpen(false);
+  };
+
+  const generateWaUrl = (order) => {
+      const text = `*ORDER MILLERSTORE*\nUser: ${order.customerName}\nGame: ${order.game}\nItem: ${order.item}\nID: ${order.userId} ${order.zoneId!=='-'?`(${order.zoneId})`:''}\nNick: ${order.inGameName || '-'}\nBayar: Rp ${order.price.toLocaleString()}\nMethod: ${order.paymentMethod.toUpperCase()}`;
+      return `https://wa.me/6285656321860?text=${encodeURIComponent(text)}`;
+  };
+
+  // --- ADMIN ACTIONS ---
+  const toggleStoreStatus = async () => await setDoc(doc(db, "config", "settings"), { ...storeConfig, isOpen: !storeConfig.isOpen });
+  const toggleChatStatus = async () => await setDoc(doc(db, "config", "settings"), { ...storeConfig, chatEnabled: !storeConfig.chatEnabled });
+  const toggleGlobalMute = async () => await setDoc(doc(db, "config", "settings"), { ...storeConfig, globalMute: !storeConfig.globalMute });
+  
+  const saveRunningText = async () => { await setDoc(doc(db, "config", "settings"), { ...storeConfig, banner: newRunningText }); alert("Teks Berjalan Diperbarui!"); };
+  const saveProduct = async (e) => {
+      e.preventDefault();
+      const payload = { gameId: prodForm.gameId, gameTitle: prodForm.gameTitle, name: prodForm.name, price: Number(prodForm.price), discountPercent: Number(prodForm.discountPercent), requiresZoneId: prodForm.requiresZoneId, order: 999 };
+      if(isEditingProd) { await updateDoc(doc(db, 'products', prodForm.id), payload); alert("Updated!"); } 
+      else { await addDoc(collection(db,'products'), payload); alert("Added!"); }
+      setProdForm({ id:'', gameId: 'ff', gameTitle: 'Free Fire', name: '', price: '', discountPercent: 0, requiresZoneId: false }); setIsEditingProd(false);
+  };
+  const editProduct = (p) => { setProdForm(p); setIsEditingProd(true); setAdminTab('products'); window.scrollTo(0,0); };
+  const savePromo = async () => { if(!promoForm.code || !promoForm.value) return; await addDoc(collection(db, "promos"), { code: promoForm.code.toUpperCase(), type: promoForm.type, value: Number(promoForm.value), limit: Number(promoForm.limit), usedCount: 0 }); setPromoForm({code:'', type:'nominal', value:'', limit: 100}); };
+  const addBannerImage = async () => { if(!bannerInput) return; await addDoc(collection(db, 'banners'), { imageUrl: bannerInput, type: 'mixed', createdAt: new Date().toISOString() }); setBannerInput(''); };
+  
+  const deleteAllBanners = async () => {
+    if(!confirm("YAKIN HAPUS SEMUA BANNER? Tindakan ini tidak bisa dibatalkan.")) return;
+    try {
+        const batch = writeBatch(db);
+        banners.forEach(b => {
+            const ref = doc(db, 'banners', b.id);
+            batch.delete(ref);
+        });
+        await batch.commit();
+        alert("Semua banner berhasil dihapus!");
+    } catch(e) {
+        alert("Gagal menghapus: " + e.message);
+    }
+  };
+
+  const addNews = async () => { if(!newsInput) return; await addDoc(collection(db, 'news'), { content: newsInput, createdAt: new Date().toISOString() }); setNewsInput(''); };
+  const resetAndSeedDatabase = async () => {
+      if(!confirm("YAKIN?")) return; setIsResetting(true);
+      try {
+          const q = query(collection(db, 'products')); const snapshot = await getDocs(q); const batch = writeBatch(db);
+          snapshot.forEach(doc => batch.delete(doc.ref));
+          let orderCount = 1; NEW_DATA_FF.forEach(item => { const docRef = doc(collection(db, 'products')); batch.set(docRef, { gameId: 'ff', gameTitle: 'Free Fire', name: item.name, price: item.price, discountPercent: 0, requiresZoneId: false, order: orderCount++ }); });
+          orderCount = 1; NEW_DATA_ML.forEach(item => { const docRef = doc(collection(db, 'products')); batch.set(docRef, { gameId: 'ml', gameTitle: 'Mobile Legends', name: item.name, price: item.price, discountPercent: 0, requiresZoneId: true, order: orderCount++ }); });
+          await batch.commit(); alert("SUKSES!");
+      } catch(e) { alert("Gagal"); } finally { setIsResetting(false); }
+  };
+
+  const getGameList = () => {
+      const map = new Map();
+      allProducts.forEach(p => { if(!map.has(p.gameId)){ map.set(p.gameId, {id: p.gameId, title: p.gameTitle, requiresZoneId: p.requiresZoneId}); } else if(p.requiresZoneId) { map.get(p.gameId).requiresZoneId = true; } });
+      let games = Array.from(map.values());
+      if (games.length === 0) return [{id: 'ff', title: 'Free Fire', requiresZoneId: false}, {id: 'ml', title: 'Mobile Legends', requiresZoneId: true}];
+      return games.sort((a,b) => { if (a.id === 'ff') return -1; if (b.id === 'ff') return 1; if (a.id === 'ml') return -1; if (b.id === 'ml') return 1; return 0; });
+  };
+
+  // Helper Stats
+  const getTotalRevenue = () => orders.filter(o => o.status === 'success').reduce((acc, curr) => acc + curr.price, 0);
+  const countPending = orders.filter(o => o.status === 'pending').length;
+
+  // --- VIEWS ---
+  if (view === 'loading') return <div className="flex h-screen items-center justify-center bg-dark-900 text-white flex-col gap-4"><Background /><Loader2 className="animate-spin w-12 h-12 text-blue-500" /></div>;
+
+  // LOGIN PAGE
+  if (view === 'login') return (
+      <div className="min-h-screen bg-dark-900 text-white flex items-center justify-center relative overflow-hidden">
+        <Background />
+        <div className="relative z-10 w-full max-w-sm p-6">
+            <div className="glass-card-login p-8 rounded-[2rem] space-y-8 animate-in zoom-in-95 duration-500 border border-white/20">
+                <div className="text-center space-y-2">
+                    <h1 className="text-4xl font-black font-display tracking-tighter text-white drop-shadow-2xl">MILLER<span className="text-blue-500">STORE</span></h1>
+                    <p className="text-[10px] text-gray-400 font-bold tracking-[0.3em] uppercase">Premium Access</p>
+                </div>
+                <button onClick={handleGoogleLogin} className="w-full bg-white hover:bg-gray-200 text-gray-900 font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all transform hover:scale-105 shadow-xl shadow-blue-900/20 group"><img src="https://www.google.com/favicon.ico" className="w-6 h-6 group-hover:rotate-12 transition-transform"/> <span>Masuk dengan Google</span></button>
+            </div>
+            {/* BERITA MUNCUL DI LOGIN (TIDAK BISA DIKLIK) */}
+            {news.length > 0 && (
+                <div className="mt-8 bg-black/40 backdrop-blur-md rounded-xl overflow-hidden border border-white/10 pointer-events-none select-none">
+                    <div className="whitespace-nowrap animate-marquee p-3 text-xs text-blue-200 font-bold uppercase tracking-widest">{news.map(n => n.content).join("  •  ")}</div>
+                </div>
+            )}
+        </div>
+      </div>
+  );
+
+  // ADMIN
+  if (view === 'admin') return (
+      <div className="min-h-screen font-sans text-gray-200 relative pb-20 p-4">
+        <Background />
+        <div className="relative z-50 max-w-2xl mx-auto space-y-4">
+          <div className="flex items-center justify-between glass-panel rounded-xl p-4 sticky top-4 z-50 bg-slate-800/90 shadow-2xl">
+            <h1 className="text-xl font-bold text-blue-400 font-display tracking-wide">ADMIN PANEL</h1>
+            <div className="flex gap-2">
+                <button onClick={toggleStoreStatus} className={`p-2 rounded text-xs font-bold flex items-center gap-1 shadow-lg ${storeConfig.isOpen ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{storeConfig.isOpen ? <Unlock size={14}/> : <Lock size={14}/>} {storeConfig.isOpen ? 'BUKA' : 'TUTUP'}</button>
+                <button onClick={toggleChatStatus} className={`p-2 rounded ${storeConfig.chatEnabled ? 'bg-blue-600 text-white' : 'bg-gray-600 text-white'}`}><MessageCircle size={14}/></button>
+                <button onClick={() => setView('store')} className="bg-white/10 px-3 py-1 text-xs rounded font-bold">Ke Toko</button>
+            </div>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+            {['overview', 'orders', 'promos', 'products', 'banners', 'news', 'support', 'users'].map(t => (<button key={t} onClick={()=>setAdminTab(t)} className={`flex-shrink-0 px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${adminTab===t?'bg-blue-600 text-white shadow-lg shadow-blue-500/30':'bg-white/5 text-gray-400 border border-white/5'}`}>{t}</button>))}
+          </div>
+
+          {adminTab === 'overview' && (
+              <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-4">
+                  <div className="col-span-2 p-5 rounded-2xl bg-gradient-to-r from-blue-900 to-indigo-900 border border-white/10 shadow-2xl relative overflow-hidden">
+                      <div className="relative z-10"><p className="text-xs text-blue-300 font-bold uppercase tracking-wider mb-1">Total Pendapatan</p><h2 className="text-3xl font-black text-white">Rp {getTotalRevenue().toLocaleString()}</h2></div>
+                  </div>
+                  <div className="bg-slate-800/80 p-4 rounded-xl border border-white/5 flex flex-col justify-between"><div className="flex justify-between items-start mb-2"><div className="p-2 bg-green-500/20 rounded-lg"><LayoutDashboard size={16} className="text-green-400"/></div><span className="text-[10px] text-gray-500">Order</span></div><div><div className="text-2xl font-bold text-white">{orders.length}</div><div className="text-[10px] text-gray-400">Total Transaksi</div></div></div>
+                  <div className="bg-slate-800/80 p-4 rounded-xl border border-white/5 flex flex-col justify-between"><div className="flex justify-between items-start mb-2"><div className="p-2 bg-yellow-500/20 rounded-lg"><Clock size={16} className="text-yellow-400"/></div><span className="text-[10px] text-gray-500">Pending</span></div><div><div className="text-2xl font-bold text-white">{countPending}</div><div className="text-[10px] text-gray-400">Menunggu</div></div></div>
+                  <div className="bg-slate-800/80 p-4 rounded-xl border border-white/5 flex flex-col justify-between"><div className="flex justify-between items-start mb-2"><div className="p-2 bg-blue-500/20 rounded-lg"><Users size={16} className="text-blue-400"/></div><span className="text-[10px] text-gray-500">Users</span></div><div><div className="text-2xl font-bold text-white">{allUsers.length}</div><div className="text-[10px] text-gray-400">Pelanggan</div></div></div>
+                  <div className="bg-slate-800/80 p-4 rounded-xl border border-white/5 flex flex-col justify-between"><div className="flex justify-between items-start mb-2"><div className="p-2 bg-purple-500/20 rounded-lg"><HelpCircle size={16} className="text-purple-400"/></div><span className="text-[10px] text-gray-500">Support</span></div><div><div className="text-2xl font-bold text-white">{supportMsgs.length}</div><div className="text-[10px] text-gray-400">Pesan Masuk</div></div></div>
+              </div>
+          )}
+
+          {adminTab === 'banners' && (
+              <GlassCard>
+                  <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-sm font-bold text-blue-400">BANNER & TEKS</h3>
+                      <button onClick={deleteAllBanners} className="bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-lg shadow-red-900/30"><Trash2 size={12}/> HAPUS SEMUA</button>
+                  </div>
+                  <div className="mb-4 p-4 bg-slate-800/50 rounded-xl flex items-center justify-between border border-white/10 shadow-lg">
+                      <div className="flex items-center gap-3"><div className={`p-2 rounded-full ${storeConfig.globalMute ? 'bg-red-500/20' : 'bg-green-500/20'}`}>{storeConfig.globalMute ? <VolumeX className="text-red-400" size={20}/> : <Volume2 className="text-green-400" size={20}/>}</div><div><div className="text-xs font-bold text-white uppercase tracking-wider">Global Mute</div><div className="text-[10px] text-gray-400">{storeConfig.globalMute ? 'Semua video user DIMATIKAN' : 'User bisa mendengar suara'}</div></div></div>
+                      <button onClick={toggleGlobalMute} className={`px-4 py-2 rounded-lg text-[10px] font-bold shadow-lg transition-all ${storeConfig.globalMute ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-green-600 hover:bg-green-500 text-white'}`}>{storeConfig.globalMute ? 'UNMUTE ALL' : 'MUTE ALL'}</button>
+                  </div>
+                  <div className="mb-4 pb-4 border-b border-white/10"><label className="text-xs text-gray-400 block mb-1">Teks Berjalan:</label><div className="flex gap-2"><input value={newRunningText} onChange={e=>setNewRunningText(e.target.value)} placeholder="Teks banner..." className="flex-1 p-2 glass-input rounded text-xs"/><button onClick={saveRunningText} className="bg-blue-600 p-2 rounded text-xs font-bold">Simpan</button></div></div>
+                  <div className="flex gap-2 mb-4"><input value={bannerInput} onChange={e=>setBannerInput(e.target.value)} placeholder="Link YouTube/TikTok/Gambar..." className="flex-1 p-2 glass-input rounded text-xs"/><button onClick={addBannerImage} className="bg-green-600 p-2 rounded"><Plus size={16}/></button></div>
+                  <div className="space-y-2">{banners.map(b => (<div key={b.id} className="relative h-24 bg-black overflow-hidden rounded group border border-white/10">{b.type === 'mixed' && b.imageUrl.includes('http') ? (getMediaContent(b.imageUrl, true).includes('embed') ? <iframe src={getMediaContent(b.imageUrl, true)} className="w-full h-full pointer-events-none"></iframe> : <img src={b.imageUrl} className="w-full h-full object-cover opacity-50"/>) : <div className="text-xs text-center p-2 text-red-400">Invalid Link</div>}<button onClick={()=>deleteDoc(doc(db,'banners',b.id))} className="absolute top-2 right-2 bg-red-600 p-1.5 rounded text-white z-10 hover:bg-red-500"><Trash2 size={14}/></button></div>))}</div>
+              </GlassCard>
+          )}
+
+          {adminTab === 'orders' && (
+            <div className="space-y-3">
+               {orders.map(o => (
+                 <div key={o.id} className="glass-panel p-4 rounded-xl border border-white/5 space-y-2 relative overflow-hidden hover:bg-white/5 transition-colors">
+                    <div className="flex justify-between items-center pb-2 border-b border-white/10"><span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${o.status==='success'?'bg-green-500/20 text-green-400':'bg-yellow-500/20 text-yellow-400'}`}>{o.status}</span><div className="flex items-center gap-1 text-[10px] text-gray-400"><Clock size={10}/> {format(new Date(o.createdAt), 'dd/MM/yy HH:mm')}</div></div>
+                    <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-xs py-2">
+                        <div><p className="text-[9px] text-gray-500 uppercase">Customer</p><p className="font-bold text-white truncate">{o.customerName}</p><p className="text-[9px] text-gray-400 truncate">{o.customerEmail}</p></div>
+                        <div><p className="text-[9px] text-gray-500 uppercase">Produk</p><p className="font-bold text-blue-300">{o.item}</p><p className="text-[9px] text-gray-400">{o.game}</p></div>
+                        <div className="col-span-2 bg-black/20 p-2 rounded"><p className="text-[9px] text-gray-500 uppercase mb-1">Target Data</p><div className="flex gap-4"><div><span className="text-[9px] text-gray-400">UID:</span> <span className="font-mono font-bold select-all">{o.userId}</span></div>{o.zoneId !== '-' && <div><span className="text-[9px] text-gray-400">Zone:</span> <span className="font-mono font-bold select-all">{o.zoneId}</span></div>}<div><span className="text-[9px] text-gray-400">Nick:</span> <span className="font-mono font-bold select-all text-yellow-300">{o.inGameName || '-'}</span></div></div></div>
+                        <div><p className="text-[9px] text-gray-500 uppercase">Total</p><p className="font-bold text-green-400">Rp {o.price.toLocaleString()}</p></div>
+                        <div><p className="text-[9px] text-gray-500 uppercase">Metode</p><p className="font-bold uppercase">{o.paymentMethod}</p></div>
+                    </div>
+                    <div className="flex gap-2 pt-2 border-t border-white/10"><button onClick={()=>updateDoc(doc(db,'orders',o.id),{status:'success'})} className="flex-1 bg-green-600/20 hover:bg-green-600/40 text-green-400 py-1.5 rounded text-xs font-bold transition-all">✓ SELESAI</button><button onClick={()=>window.open(generateWaUrl(o),'_blank')} className="px-3 bg-white/5 rounded hover:bg-green-500/20 text-green-400"><Phone size={14}/></button><button onClick={()=>deleteDoc(doc(db,'orders',o.id))} className="px-3 bg-red-600/20 text-red-400 rounded"><Trash2 size={14}/></button></div>
+                 </div>
+               ))}
+            </div>
+          )}
+
+          {adminTab === 'promos' && (<GlassCard><h3 className="text-sm font-bold text-green-400 mb-3">BUAT KODE PROMO</h3><div className="space-y-2"><input value={promoForm.code} onChange={e=>setPromoForm({...promoForm, code:e.target.value})} placeholder="KODE" className="w-full p-2 glass-input rounded text-xs uppercase"/><div className="grid grid-cols-2 gap-2"><select value={promoForm.type} onChange={e=>setPromoForm({...promoForm, type:e.target.value})} className="p-2 glass-input rounded text-xs bg-dark-900"><option value="nominal">Rp</option><option value="percent">%</option></select><input value={promoForm.value} onChange={e=>setPromoForm({...promoForm, value:e.target.value})} placeholder="Nilai" type="number" className="p-2 glass-input rounded text-xs"/></div><input value={promoForm.limit} onChange={e=>setPromoForm({...promoForm, limit:e.target.value})} placeholder="Limit" type="number" className="w-full p-2 glass-input rounded text-xs"/><button onClick={savePromo} className="w-full bg-green-600 py-2 rounded font-bold text-xs">SIMPAN PROMO</button></div><div className="mt-4 space-y-2 max-h-40 overflow-y-auto">{promos.map(p => (<div key={p.id} className="bg-white/5 p-2 rounded flex justify-between text-xs"><span>{p.code} ({p.type==='percent'?p.value+'%':'Rp '+p.value})</span><button onClick={()=>deleteDoc(doc(db,'promos',p.id))} className="text-red-400"><Trash2 size={12}/></button></div>))}</div></GlassCard>)}
+          {adminTab === 'news' && (<GlassCard><h3 className="text-sm font-bold text-blue-400 mb-3">BERITA</h3><div className="flex gap-2 mb-4"><input value={newsInput} onChange={e=>setNewsInput(e.target.value)} placeholder="Isi Berita..." className="flex-1 p-2 glass-input rounded text-xs"/><button onClick={addNews} className="bg-green-600 p-2 rounded"><Plus size={16}/></button></div><div className="space-y-2">{news.map(n => (<div key={n.id} className="bg-white/5 p-2 rounded flex justify-between text-xs"><span>{n.content}</span><button onClick={()=>deleteDoc(doc(db,'news',n.id))} className="text-red-400"><Trash2 size={14}/></button></div>))}</div></GlassCard>)}
+          {adminTab === 'products' && (<GlassCard><form onSubmit={saveProduct} className="space-y-2 mb-4"><div className="grid grid-cols-2 gap-2"><input value={prodForm.gameId} onChange={e=>setProdForm({...prodForm, gameId:e.target.value})} placeholder="ID (ff)" className="p-2 glass-input rounded text-xs"/><input value={prodForm.gameTitle} onChange={e=>setProdForm({...prodForm, gameTitle:e.target.value})} placeholder="Game" className="p-2 glass-input rounded text-xs"/></div><input value={prodForm.name} onChange={e=>setProdForm({...prodForm, name:e.target.value})} placeholder="Item" className="w-full p-2 glass-input rounded text-xs"/><div className="grid grid-cols-2 gap-2"><input value={prodForm.price} onChange={e=>setProdForm({...prodForm, price:e.target.value})} placeholder="Harga" className="p-2 glass-input rounded text-xs"/><input value={prodForm.discountPercent} onChange={e=>setProdForm({...prodForm, discountPercent:e.target.value})} placeholder="Diskon" className="p-2 glass-input rounded text-xs"/></div><div className="flex items-center gap-2 bg-white/5 p-2 rounded"><input type="checkbox" checked={prodForm.requiresZoneId} onChange={e=>setProdForm({...prodForm, requiresZoneId:e.target.checked})} className="accent-blue-600"/><label className="text-xs">Wajib Zone?</label></div><button className="w-full bg-orange-600 py-2 rounded text-xs font-bold">{isEditingProd?'Update':'Simpan'}</button></form><div className="flex gap-2 mb-2 overflow-x-auto">{getGameList().map(g=><button key={g.id} onClick={()=>setAdminProductTab(g.id)} className="px-3 py-1 bg-white/10 rounded text-[10px]">{g.title}</button>)}</div><div className="space-y-1 max-h-60 overflow-y-auto">{allProducts.filter(p=>p.gameId===adminProductTab).map(p=><div key={p.id} className="flex justify-between bg-white/5 p-2 rounded text-xs"><span>{p.name}</span><div><button onClick={()=>editProduct(p)} className="text-blue-400 mr-2"><Edit size={12}/></button><button onClick={()=>deleteDoc(doc(db,'products',p.id))} className="text-red-400"><Trash2 size={12}/></button></div></div>)}</div><button onClick={resetAndSeedDatabase} className="w-full mt-4 bg-red-900/50 py-2 rounded text-xs text-red-300">Reset DB</button></GlassCard>)}
+          {adminTab === 'support' && (<div className="space-y-2">{supportMsgs.map(s=>(<div key={s.id} className="glass-panel p-3 rounded text-xs"><div className="font-bold text-blue-400">{s.sender}</div><p className="mt-1">{s.text}</p><button onClick={()=>deleteDoc(doc(db,'support',s.id))} className="mt-2 text-red-400">Hapus</button></div>))}</div>)}
+          {adminTab === 'users' && (<GlassCard className="space-y-3"><h3 className="text-sm font-bold text-blue-400">USERS ({allUsers.length})</h3><div className="space-y-2 max-h-96 overflow-y-auto">{allUsers.map((u, idx) => (<div key={idx} className="flex items-center gap-3 bg-white/5 p-2 rounded-lg border border-white/5"><img src={u.photoURL} alt="U" className="w-8 h-8 rounded-full border border-white/20"/><div className="flex-1 overflow-hidden"><div className="text-xs font-bold text-white truncate">{u.displayName}</div><div className="text-[10px] text-gray-400 truncate">{u.email}</div><div className="text-[9px] text-blue-300 mt-1 flex items-center gap-1"><Calendar size={8}/> {u.lastLogin ? format(new Date(u.lastLogin), 'dd MMM HH:mm', {locale: idLocale}) : 'Baru'}</div></div></div>))}</div></GlassCard>)}
+        </div>
+      </div>
+  );
+
+  // STORE FRONT
+  if (!selectedGameData) return (
+      <div className="min-h-screen font-sans text-white relative flex flex-col pb-32">
+        <Background />
+        
+        {/* BANNER SECTION (Non-Clickable) */}
+        {banners.length > 0 && (<div className="relative h-56 w-full overflow-hidden z-10 bg-black/50 rounded-b-[2rem] shadow-2xl"><BannerSlider banners={banners} globalMute={storeConfig.globalMute} /></div>)}
+        {storeConfig.banner && <div className="bg-blue-900/50 backdrop-blur border-b border-blue-500/30 overflow-hidden py-1 relative z-20 pointer-events-none select-none"><div className="whitespace-nowrap animate-marquee text-xs font-bold text-blue-200 uppercase tracking-widest">{storeConfig.banner}</div></div>}
+
+        <div className="p-4 flex justify-between items-center relative z-20">
+           <div className="flex items-center gap-2"><img src={user?.photoURL} className="w-10 h-10 rounded-full border-2 border-blue-500"/><div className="leading-tight"><p className="text-[10px] text-gray-400">Halo,</p><p className="font-bold text-sm">{user?.displayName?.split(' ')[0]}</p></div></div>
+           {isAdmin && <button onClick={() => setView('admin')} className="bg-blue-600 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg animate-pulse">ADMIN</button>}
+        </div>
+
+        {!storeConfig.isOpen && !isAdmin ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center relative z-10"><div className="bg-red-500/20 p-6 rounded-full mb-4 animate-bounce"><Lock size={40} className="text-red-500"/></div><h2 className="text-2xl font-black font-display text-gray-200">TOKO SEDANG TUTUP</h2></div>
+        ) : (
+          <div className="flex-1 relative z-10 p-6 max-w-md mx-auto w-full space-y-6">
+            
+            <GlassCard className="border-t-2 border-gray-700 bg-slate-800/80 backdrop-blur-xl">
+               <h3 className="text-xs font-bold text-gray-400 mb-3 flex items-center gap-2"><History size={14}/> RIWAYAT TRANSAKSI</h3>
+               <div className="space-y-2 max-h-40 overflow-y-auto">
+                   {userOrders.map(o => {
+                      const isExpired = Date.now() - new Date(o.createdAt).getTime() > 10 * 60 * 1000;
+                      const status = (o.status === 'pending' && isExpired) ? 'KADALUARSA' : o.status;
+                      const showQr = o.paymentMethod === 'qris' && status === 'pending';
+                      return (
+                      <div key={o.id} className="bg-white/5 p-2 rounded text-xs mb-2">
+                         <div className="flex justify-between items-center mb-1">
+                             <div><div className="font-bold text-gray-300">{o.game}</div><div className="text-[10px] text-gray-500">{o.item} - Rp {o.price.toLocaleString()}</div></div>
+                             <div className="text-right"><span className={`px-2 py-0.5 rounded font-bold text-[9px] uppercase ${status==='success'?'bg-green-500/20 text-green-400':status==='pending'?'bg-yellow-500/20 text-yellow-400':'bg-red-500/20 text-red-400'}`}>{status}</span></div>
+                         </div>
+                         {showQr && (<div className="mt-2 bg-white p-2 rounded flex justify-center"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(o.qrisString)}`} className="w-24 h-24 mix-blend-multiply"/></div>)}
+                      </div>
+                   )})}
+               </div>
+            </GlassCard>
+
+            <button onClick={performLogout} className="w-full bg-red-500/10 border border-red-500/30 text-red-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-xs hover:bg-red-500/20 transition-all cursor-pointer mt-6 mb-10"><LogoutIcon size={16}/> KELUAR DARI AKUN</button>
+
+            <h3 className="text-sm font-bold text-white border-l-4 border-blue-500 pl-2 mt-4">PILIH GAME</h3>
+            <div className="grid grid-cols-2 gap-4 pb-10">
+                {getGameList().map((g, idx) => (
+                      <div key={idx} onClick={() => setSelectedGameData(g)} className="cursor-pointer relative overflow-hidden rounded-3xl p-6 flex flex-col items-center gap-4 transition-all duration-300 glass-panel hover:border-blue-500 bg-gradient-to-b from-slate-800/50 to-blue-900/10">
+                        <div className={`p-4 rounded-2xl shadow-lg ${g.id==='ff'?'bg-orange-600':g.id==='ml'?'bg-blue-600':'bg-purple-600'}`}><Gamepad2 className="w-8 h-8 text-white" /></div>
+                        <span className="font-bold text-sm font-display text-center uppercase">{g.title}</span>
+                      </div>
+                ))}
+            </div>
+
+            {news.length > 0 && (<div className="mt-6"><h3 className="text-sm font-bold text-white border-l-4 border-purple-500 pl-2 mb-3">BERITA TERBARU</h3><div className="bg-black/30 rounded-xl overflow-hidden backdrop-blur-sm pointer-events-none select-none"><div className="whitespace-nowrap animate-marquee p-3 text-xs text-blue-200">{news.map(n => n.content).join("  •  ")}</div></div></div>)}
+        </div>
+        )}
+
+        <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
+            {storeConfig.chatEnabled && <button onClick={()=>setChatOpen(true)} className="bg-blue-600 p-4 rounded-full shadow-lg text-white animate-bounce-slow"><MessageCircle size={24}/></button>}
+            <button onClick={()=>setSupportOpen(true)} className="bg-purple-600 p-4 rounded-full shadow-lg text-white"><HelpCircle size={24}/></button>
+        </div>
+
+        {chatOpen && (
+            <div className="fixed bottom-24 right-6 w-80 h-96 bg-slate-900 border border-white/20 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 fade-in">
+                <div className="bg-blue-900 p-3 flex justify-between items-center"><h3 className="font-bold text-sm flex items-center gap-2"><Users size={16}/> Komunitas Miller</h3><button onClick={()=>setChatOpen(false)} className="text-gray-300">✕</button></div>
+                <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-black/20">
+                    {chats.map(c => (
+                        <div key={c.id} className={`flex gap-2 ${c.uid===user.uid ? 'flex-row-reverse' : ''} group`}>
+                            <img src={c.photoURL} className="w-6 h-6 rounded-full"/>
+                            <div className={`text-xs p-2 rounded-lg max-w-[80%] ${c.uid===user.uid ? 'bg-blue-600 text-white' : 'bg-white/10 text-gray-200'}`}>
+                                <div className="font-bold text-[9px] opacity-70 mb-0.5">{c.sender}</div>
+                                {c.text}
+                            </div>
+                            {isAdmin && <button onClick={()=>deleteChat(c.id)} className="opacity-0 group-hover:opacity-100 text-red-500 bg-black/50 p-1 rounded-full h-fit self-center"><Trash2 size={10}/></button>}
+                        </div>
+                    ))}
+                    <div ref={chatEndRef}></div>
+                </div>
+                <form onSubmit={sendChat} className="p-2 bg-slate-800 flex gap-2"><input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} placeholder="Tulis pesan..." className="flex-1 bg-black/30 border border-white/10 rounded-full px-3 text-xs"/><button className="bg-blue-600 p-2 rounded-full text-white"><Send size={14}/></button></form>
+            </div>
+        )}
+
+        {supportOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                <GlassCard className="w-full max-w-sm border-purple-500/30">
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><HelpCircle/> Pusat Bantuan</h3>
+                    <p className="text-xs text-gray-400 mb-4">Kirim pesan langsung ke Admin. Balasan akan dikirim ke email Anda.</p>
+                    <textarea value={supportInput} onChange={e=>setSupportInput(e.target.value)} className="w-full p-3 bg-black/30 rounded-xl text-sm mb-4 h-32 border border-white/10" placeholder="Jelaskan masalah Anda..."></textarea>
+                    <div className="flex gap-2"><button onClick={()=>setSupportOpen(false)} className="flex-1 py-3 bg-white/10 rounded-xl text-xs font-bold">Batal</button><button onClick={sendSupportMessage} className="flex-1 py-3 bg-purple-600 rounded-xl text-xs font-bold">Kirim</button></div>
+                </GlassCard>
+            </div>
+        )}
+      </div>
+  );
+
+  if (!selectedGameData) return null; 
+  const gameProducts = allProducts.filter(p => p.gameId === selectedGameData.id);
+  const showZoneInput = selectedGameData.requiresZoneId; 
+  if (codSuccess || qrisData) return (<div className="min-h-screen flex items-center justify-center p-6 bg-dark-900 text-white relative"><Background /><GlassCard className="max-w-sm text-center w-full space-y-6"><CheckCircle size={60} className="text-green-500 mx-auto"/><div><h2 className="text-2xl font-bold">Pesanan Dibuat!</h2><p className="text-gray-400 text-sm">Total: Rp {(appliedPromo ? calculateFinalPrice() : selectedItem.price).toLocaleString()}</p></div>{qrisData && <div className="bg-white p-3 rounded-xl inline-block"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrisData)}`} className="mix-blend-multiply"/></div>}<div className="grid grid-cols-2 gap-2"><button onClick={() => window.open(generateWaUrl(null), '_blank')} className="bg-green-600 py-3 rounded-xl font-bold text-sm flex justify-center items-center gap-2"><Phone size={16}/> Chat WA</button><button onClick={()=>window.location.reload()} className="bg-white/10 py-3 rounded-xl font-bold text-sm">Selesai</button></div></GlassCard></div>);
+
+  return (
+    <div className="min-h-screen bg-dark-900 font-sans text-white pb-48 relative">
+      <Background />
+      <div className="relative z-20 h-40 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-b-[3rem] shadow-2xl p-6 flex items-start justify-between"><button onClick={() => {setSelectedGameData(null); setSelectedItem(null); setAppliedPromo(null); setPromoCodeInput('');}} className="p-2 bg-white/10 rounded-full"><ChevronLeft /></button><span className="font-bold font-display text-xl uppercase">{selectedGameData.title}</span><div className="w-8"></div></div>
+      <div className="relative z-30 -mt-16 px-6 max-w-md mx-auto space-y-6">
+        <GlassCard className="bg-slate-800/90 backdrop-blur-xl">
+          <div className="space-y-3">
+            <div><label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Nama Akun (Nickname)</label><div className="relative"><input type="text" value={userNameInput} onChange={(e) => setUserNameInput(e.target.value)} className="w-full p-3 pl-10 glass-input rounded-xl font-bold" placeholder="Contoh: Viper~" /><User className="absolute left-3 top-3.5 text-gray-500" size={16} /></div></div>
+            <div><label className="text-[10px] font-bold text-gray-400 uppercase ml-1">User ID</label><div className="relative"><input type="number" value={userId} onChange={(e) => setUserId(e.target.value)} className="w-full p-3 pl-10 glass-input rounded-xl font-bold" placeholder="12345678" /><Hash className="absolute left-3 top-3.5 text-gray-500" size={16} /></div></div>
+            {showZoneInput && (<div><label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Zone ID</label><input type="number" value={zoneId} onChange={(e) => setZoneId(e.target.value)} className="w-full p-3 glass-input rounded-xl font-bold" placeholder="2025" /></div>)}
+          </div>
+        </GlassCard>
+        
+        <div className="grid grid-cols-2 gap-3">
+            {gameProducts.length === 0 && <p className="col-span-2 text-center text-gray-500 text-xs py-10">Produk belum tersedia untuk game ini.</p>}
+            {gameProducts.map((item, idx) => {
+              const discountedPrice = item.discountPercent > 0 ? item.price - (item.price * item.discountPercent / 100) : item.price;
+              return (
+                <button key={idx} onClick={() => setSelectedItem(item)} className={`p-4 rounded-xl text-left border transition-all relative overflow-hidden ${selectedItem?.id===item.id ? 'bg-gradient-to-br from-blue-600 to-indigo-600 border-transparent shadow-lg transform scale-105' : 'glass-panel border-white/5 hover:bg-slate-700/50'}`}>
+                  {item.discountPercent > 0 && <div className="absolute top-0 right-0 bg-red-600 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">-{item.discountPercent}%</div>}
+                  <div className="text-xs text-gray-300 mb-1">{item.name}</div>
+                  <div className="font-display font-bold text-lg">Rp {discountedPrice.toLocaleString()}</div>
+                  {item.discountPercent > 0 && <div className="text-[10px] text-gray-500 line-through">Rp {item.price.toLocaleString()}</div>}
+                </button>
+              )
+            })}
+        </div>
+
+        {/* PAYMENT METHOD SELECTION */}
+        {selectedItem && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+                <h3 className="text-sm font-bold text-gray-400 mt-6 mb-2 pl-1">METODE PEMBAYARAN</h3>
+                <div className="space-y-3">
+                    <button onClick={() => setPaymentMethod('qris')} className={`w-full p-4 rounded-xl border flex items-center gap-3 transition-all ${paymentMethod==='qris'?'bg-blue-600/20 border-blue-500 shadow-lg shadow-blue-900/20':'border-white/10 hover:bg-white/5'}`}>
+                        <div className="bg-white p-2 rounded-lg"><CreditCard size={20} className="text-black"/></div>
+                        <div className="text-left flex-1"><div className="font-bold text-sm text-white">QRIS (Instant)</div><div className="text-[10px] text-gray-400">Dana, OVO, Gopay, ShopeePay</div></div>
+                        {paymentMethod==='qris' && <CheckCircle className="text-blue-500" size={20}/>}
+                    </button>
+                    <button onClick={() => setPaymentMethod('cod')} className={`w-full p-4 rounded-xl border flex items-center gap-3 transition-all ${paymentMethod==='cod'?'bg-green-600/20 border-green-500 shadow-lg shadow-green-900/20':'border-white/10 hover:bg-white/5'}`}>
+                        <div className="bg-white p-2 rounded-lg"><MapPin size={20} className="text-black"/></div>
+                        <div className="text-left flex-1"><div className="font-bold text-sm text-white">COD (Tunai)</div><div className="text-[10px] text-gray-400">Bayar di Lokasi Admin (Ambon)</div></div>
+                        {paymentMethod==='cod' && <CheckCircle className="text-green-500" size={20}/>}
+                    </button>
+                </div>
+            </div>
+        )}
+      </div>
+
+      <div className="fixed bottom-0 w-full z-40 bg-slate-900/90 backdrop-blur-lg border-t border-white/10 p-4 safe-area-bottom">
+        <div className="max-w-md mx-auto flex justify-between items-center">
+          <div><p className="text-[10px] text-gray-400 font-bold uppercase">Total Bayar</p><p className="text-2xl font-black font-display">{selectedItem ? `Rp ${(appliedPromo ? calculateFinalPrice() : (selectedItem.discountPercent > 0 ? selectedItem.price - (selectedItem.price * selectedItem.discountPercent/100) : selectedItem.price)).toLocaleString()}` : '-'}</p></div>
+          <button onClick={()=> userId && userNameInput && selectedItem ? setShowConfirm(true) : alert("Lengkapi ID, Nickname & Item!")} disabled={!selectedItem} className="px-8 py-3 rounded-xl font-bold shadow-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">BAYAR</button>
+        </div>
+      </div>
+
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95">
+            <h3 className="text-xl font-black font-display text-center">KONFIRMASI</h3>
+            <div className="flex gap-2 mb-2"><input value={promoCodeInput} onChange={e=>setPromoCodeInput(e.target.value)} placeholder="Punya Kode Promo?" className="flex-1 p-2 text-sm glass-input rounded border border-white/10 uppercase" /><button onClick={handleApplyPromo} className="bg-purple-600 px-3 rounded font-bold text-xs">CEK</button></div>
+            {appliedPromo && <div className="text-green-400 text-xs text-center font-bold bg-green-500/10 p-2 rounded">Diskon {appliedPromo.type==='percent' ? `${appliedPromo.value}%` : `Rp ${appliedPromo.value.toLocaleString()}`} Aktif!</div>}
+            
+            <div className="bg-white/5 p-3 rounded-xl text-xs space-y-2">
+                <div className="flex justify-between"><span>Item:</span> <span className="font-bold">{selectedItem.name}</span></div>
+                <div className="flex justify-between"><span>ID:</span> <span className="font-bold">{userId} {showZoneInput && `(${zoneId})`}</span></div>
+                <div className="flex justify-between"><span>Nick:</span> <span className="font-bold text-yellow-300">{userNameInput}</span></div>
+                <div className="flex justify-between border-t border-white/10 pt-2"><span>Total:</span> <span className="font-bold text-lg text-blue-400">Rp {calculateFinalPrice().toLocaleString()}</span></div>
+            </div>
+
+            <div className="flex gap-2"><button onClick={() => setShowConfirm(false)} className="flex-1 py-3 rounded-xl border border-white/10 font-bold text-gray-400">Batal</button><button onClick={handleConfirmOrder} disabled={isSubmitting} className="flex-1 py-3 bg-blue-600 rounded-xl font-bold">{isSubmitting?<Loader2 className="animate-spin mx-auto"/>:"Bayar Sekarang"}</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const root = createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
